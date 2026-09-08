@@ -66,12 +66,16 @@ def render_header(data: dict[str, Any]) -> None:
     profile = data["profile"]
     active = sum(item["status"] == "active" for item in data["challenges"])
     done = sum(item["status"] == "reward_selected" for item in data["challenges"])
-    st.markdown(f"<section class='hero'><div class='eyebrow'>SIYEONG'S SPARKLE QUEST ✦</div><h1>시영의 반짝반짝<br>미션 놀이터 🌈</h1><p>오늘의 작은 도전이 내일의 큰 자신감이 돼요!</p></section>", unsafe_allow_html=True)
+    st.markdown(f"<section class='hero'><div class='eyebrow'>SIYEONG'S SPARKLE QUEST ✦</div><h1>시영의 반짝반짝 미션 놀이터 🌈</h1><p>오늘의 작은 도전이 내일의 큰 자신감이 돼요!</p></section>", unsafe_allow_html=True)
     left, middle, right = st.columns([5, 2, 1])
     with left:
         with st.form("daily_memo_form"):
-            memo = st.text_input("오늘의 각오", value=str(profile.get("daily_memo", "")), label_visibility="collapsed", placeholder="오늘 내가 해낼 멋진 일은?")
-            if st.form_submit_button("각오 저장"):
+            memo_column, save_column = st.columns([5, 1])
+            with memo_column:
+                memo = st.text_input("오늘의 각오", value=str(profile.get("daily_memo", "")), label_visibility="collapsed", placeholder="오늘 내가 해낼 멋진 일은?")
+            with save_column:
+                save_memo = st.form_submit_button("각오 저장", use_container_width=True)
+            if save_memo:
                 profile["daily_memo"] = memo.strip()
                 storage.save_data(data)
                 st.success("각오를 저장했어요!")
