@@ -1,0 +1,1 @@
+"""Minty Stamp utility modules."""
