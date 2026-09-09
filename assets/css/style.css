@@ -4,7 +4,7 @@
 .stApp { background: radial-gradient(circle at 10% 0%, #ffffff 0, #F7FCFB 42%, #E9F8F3 100%); color: var(--ink); }
 .block-container { max-width: 1180px; padding-top: 2.5rem; overflow: visible; }
 h1, h2, h3, [data-testid='stMetricValue'] { font-family: 'Jua', sans-serif; }
-.hero { background: linear-gradient(120deg, #DDF7F0, #FFF8DC); border: 2px solid #B9E8DC; border-radius: 24px; padding: 2rem; margin-top: .25rem; box-shadow: 0 10px 30px rgba(45, 130, 111, .10); }
+.hero { background: linear-gradient(120deg, #DDF7F0, #FFF8DC); border: 2px solid #B9E8DC; border-radius: 24px; padding: 2rem; margin: .25rem 0 .65rem; box-shadow: 0 10px 30px rgba(45, 130, 111, .10); }
 .hero h1 { margin: 0; color: var(--ink); font-size: clamp(2rem, 4.3vw, 3.3rem); white-space: nowrap; }
 .eyebrow { color: var(--mint); font-weight: 700; letter-spacing: .06em; }
 .slot { min-height: 155px; border-radius: 20px; padding: 1rem .7rem; text-align: center; margin: .4rem 0 1rem; display: flex; flex-direction: column; justify-content: center; }
