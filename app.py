@@ -31,23 +31,6 @@ def configure_cloud() -> None:
             os.environ[name] = str(value)
 
 
-def require_family_password() -> None:
-    """배포된 가족용 앱은 설정된 비밀번호로만 엽니다."""
-    password = str(cloud_secrets().get("APP_PASSWORD", ""))
-    if not password or st.session_state.get("family_access"):
-        return
-    st.markdown("## 🔐 시영의 미션 놀이터")
-    st.caption("가족만 사용할 수 있는 비밀번호를 입력해주세요.")
-    with st.form("family_password_form"):
-        entered = st.text_input("비밀번호", type="password")
-        if st.form_submit_button("입장하기", use_container_width=True):
-            if entered == password:
-                st.session_state.family_access = True
-                st.rerun()
-            st.error("비밀번호가 맞지 않아요.")
-    st.stop()
-
-
 def refresh_data() -> dict[str, Any]:
     if "app_data" not in st.session_state:
         st.session_state.app_data = storage.load_data()
@@ -237,7 +220,6 @@ def render_reward_picker(data: dict[str, Any], mission: dict[str, Any]) -> None:
 
 def main() -> None:
     configure_cloud()
-    require_family_password()
     effects.inject_custom_css()
     data = refresh_data()
     render_header(data)

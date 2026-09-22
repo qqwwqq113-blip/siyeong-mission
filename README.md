@@ -15,4 +15,4 @@ streamlit run app.py
 
 ## 태블릿용 웹 배포
 
-Streamlit Cloud에 `SUPABASE_URL`, `SUPABASE_KEY`, `APP_PASSWORD` 비밀값을 설정하면 Supabase에 기록을 저장합니다. 이 경우 컴퓨터가 꺼져 있어도 같은 웹주소에서 사용할 수 있습니다. 비밀값 형식은 `.streamlit/secrets.example.toml`을 참고하며, 실제 키가 담긴 `secrets.toml`은 GitHub에 올리지 않습니다.
+Streamlit Cloud에 `SUPABASE_URL`, `SUPABASE_KEY` 비밀값을 설정하면 Supabase에 기록을 저장합니다. 이 경우 컴퓨터가 꺼져 있어도 같은 웹주소에서 사용할 수 있습니다. 비밀값 형식은 `.streamlit/secrets.example.toml`을 참고하며, 실제 키가 담긴 `secrets.toml`은 GitHub에 올리지 않습니다.
