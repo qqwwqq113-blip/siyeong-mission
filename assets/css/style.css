@@ -14,8 +14,9 @@ h1, h2, h3, [data-testid='stMetricValue'] { font-family: 'Jua', sans-serif; }
 .slot-icon { font-size: 2.7rem; line-height: 1.1; }
 .slot-label { font-family: 'Jua', sans-serif; font-size: 1.15rem; margin-top: .4rem; }
 .slot-date { color: var(--muted); font-size: .9rem; }
-.wish-card, .timeline-card { background: rgba(255,255,255,.86); border: 1px solid #CBEAE1; border-radius: 18px; padding: 1rem; margin-bottom: 1rem; height: 100%; }
-.wish-card img { display: block; width: 100%; max-width: 100%; height: auto; max-height: 260px; border-radius: 14px; object-fit: contain; }
+.timeline-card { background: rgba(255,255,255,.86); border: 1px solid #CBEAE1; border-radius: 18px; padding: 1rem; margin-bottom: 1rem; height: 100%; }
+[data-testid='stVerticalBlockBorderWrapper'] { border-color: #CBEAE1; border-radius: 18px; background: rgba(255,255,255,.78); }
+[data-testid='stImage'] img { display: block; width: 100%; max-width: 100%; height: auto; max-height: 260px; border-radius: 14px; object-fit: contain; }
 .hero img, .stImage img { max-width: 100%; height: auto; object-fit: contain; }
 .timeline-card { border-left: 7px solid var(--mint); }
 .mission-card { min-height: 112px; background: linear-gradient(135deg, #FFFFFF, #F0FBF7); border: 2px solid #CBEAE1; border-radius: 18px; padding: 1rem; text-align: center; box-shadow: 0 6px 18px rgba(45,130,111,.08); }

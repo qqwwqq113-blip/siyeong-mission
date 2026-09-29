@@ -131,10 +131,14 @@ def render_wishlist(data: dict[str, Any]) -> None:
     with st.expander("✨ 새 선물 넣기"):
         with st.form("wishlist_form", clear_on_submit=True):
             title = st.text_input("선물 이름 *")
-            image_url = st.text_input("이미지 URL (선택: 이미지 파일 주소)")
+            wish_url = st.text_input(
+                "상품 링크 또는 직접 이미지 주소 (선택)",
+                placeholder="쿠팡 상품 링크 또는 https://.../사진.jpg",
+                help="상품 페이지 주소는 '상품 보기' 버튼으로, JPG·PNG 같은 직접 이미지 주소는 사진으로 표시돼요.",
+            )
             memo = st.text_area("부모님과의 약속 메모 (선택)")
             if st.form_submit_button("보물상자에 넣기", use_container_width=True):
-                if storage.add_wishlist_item(title, image_url, memo):
+                if storage.add_wishlist_item(title, wish_url, memo):
                     st.session_state.app_data = storage.load_data(); st.rerun()
                 st.error("선물 이름을 입력해주세요.")
     if not data["wishlist"]:
@@ -143,24 +147,26 @@ def render_wishlist(data: dict[str, Any]) -> None:
         columns = st.columns(3)
         for column, item in zip(columns, data["wishlist"][start:start + 3]):
             with column:
-                st.markdown("<div class='wish-card'>", unsafe_allow_html=True)
-                if item.get("image_url"):
-                    try:
-                        st.image(item["image_url"], use_container_width=True)
-                    except Exception:
+                with st.container(border=True):
+                    if item.get("image_url"):
+                        try:
+                            st.image(item["image_url"], use_container_width=True)
+                        except Exception:
+                            st.markdown("<div class='gift-icon'>🎁</div>", unsafe_allow_html=True)
+                            st.caption("선물 이미지를 불러오지 못했어요. 이미지 주소를 확인해주세요.")
+                    else:
                         st.markdown("<div class='gift-icon'>🎁</div>", unsafe_allow_html=True)
-                        st.caption("선물 이미지를 불러오지 못했어요. 이미지 주소를 확인해주세요.")
-                else:
-                    st.markdown("<div class='gift-icon'>🎁</div>", unsafe_allow_html=True)
-                st.markdown(f"### {escape(item['title'])}", unsafe_allow_html=True)
-                st.caption(item.get("memo", ""))
-                claimed_by = storage.get_challenge(data, item.get("claimed_by", ""))
-                if claimed_by: st.success(f"{claimed_by['emoji']} {claimed_by['title']}의 선물")
-                else:
-                    st.caption("아직 고를 수 있는 선물이에요")
-                    if st.button("삭제", key=f"delete-{item['id']}", use_container_width=True):
-                        storage.delete_wishlist_item(item["id"]); st.session_state.app_data = storage.load_data(); st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
+                    st.markdown(f"### {escape(item['title'])}", unsafe_allow_html=True)
+                    if item.get("memo"):
+                        st.caption(item["memo"])
+                    if item.get("product_url"):
+                        st.link_button("🔗 상품 페이지 열기", item["product_url"], use_container_width=True)
+                    claimed_by = storage.get_challenge(data, item.get("claimed_by", ""))
+                    if claimed_by: st.success(f"{claimed_by['emoji']} {claimed_by['title']}의 선물")
+                    else:
+                        st.caption("아직 고를 수 있는 선물이에요")
+                        if st.button("삭제", key=f"delete-{item['id']}", use_container_width=True):
+                            storage.delete_wishlist_item(item["id"]); st.session_state.app_data = storage.load_data(); st.rerun()
 
 
 def _move_month(month_start: date, offset: int) -> date:

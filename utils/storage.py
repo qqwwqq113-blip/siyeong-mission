@@ -10,6 +10,7 @@ import uuid
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from utils.moods import MOODS
 
@@ -77,6 +78,16 @@ def _new_challenge(title: str, emoji: str, target: int, unit: str, description: 
             "selected_reward_id": None, "created_at": _now(), "completed_at": None}
 
 
+def _classify_wish_url(raw_url: str) -> tuple[str, str]:
+    """직접 이미지 주소와 일반 상품 페이지 주소를 구분합니다."""
+    cleaned = raw_url.strip()
+    parsed = urlparse(cleaned)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return "", ""
+    image_extensions = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg")
+    return (cleaned, "") if parsed.path.lower().endswith(image_extensions) else ("", cleaned)
+
+
 def get_initial_schema() -> dict[str, Any]:
     return {"schema_version": 3, "profile": {"child_name": "시영", "daily_memo": "오늘도 작은 도전을 멋지게 해내자!", "updated_at": _now()},
             "wishlist": [], "mood_entries": [], "challenges": [_new_challenge("영어 단어 100점", "📚", 10, "번", "100점 시험을 볼 때마다 별을 하나 받아요."),
@@ -117,6 +128,12 @@ def _normalize_data(data: dict[str, Any]) -> dict[str, Any]:
     normalized.setdefault("wishlist", [])
     normalized.setdefault("mood_entries", [])
     normalized.setdefault("challenges", [])
+    for item in normalized["wishlist"]:
+        item.setdefault("image_url", "")
+        item.setdefault("product_url", "")
+        if item["image_url"] and not item["product_url"]:
+            image_url, product_url = _classify_wish_url(str(item["image_url"]))
+            item["image_url"], item["product_url"] = image_url, product_url
     valid_mood_entries = {}
     for entry in normalized["mood_entries"]:
         try:
@@ -253,9 +270,10 @@ def undo_progress(challenge_id: str) -> tuple[bool, str]:
     return (True, "마지막 적립을 되돌렸어요.") if save_data(data) else (False, "저장하지 못했어요.")
 
 
-def add_wishlist_item(title: str, image_url: str = "", memo: str = "") -> bool:
+def add_wishlist_item(title: str, wish_url: str = "", memo: str = "") -> bool:
     if not title.strip(): return False
-    data = load_data(); data["wishlist"].append({"id": f"wish-{uuid.uuid4()}", "title": title.strip(), "image_url": image_url.strip(), "memo": memo.strip(), "claimed_by": None, "created_at": _now()})
+    image_url, product_url = _classify_wish_url(wish_url)
+    data = load_data(); data["wishlist"].append({"id": f"wish-{uuid.uuid4()}", "title": title.strip(), "image_url": image_url, "product_url": product_url, "memo": memo.strip(), "claimed_by": None, "created_at": _now()})
     return save_data(data)
 
 
