@@ -11,6 +11,8 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
+from utils.moods import MOODS
+
 LOGGER = logging.getLogger(__name__)
 ROOT_DIR = Path(__file__).resolve().parent.parent
 STATE_ID = "siyeong-family"
@@ -76,8 +78,8 @@ def _new_challenge(title: str, emoji: str, target: int, unit: str, description: 
 
 
 def get_initial_schema() -> dict[str, Any]:
-    return {"schema_version": 2, "profile": {"child_name": "시영", "daily_memo": "오늘도 작은 도전을 멋지게 해내자!", "updated_at": _now()},
-            "wishlist": [], "challenges": [_new_challenge("영어 단어 100점", "📚", 10, "번", "100점 시험을 볼 때마다 별을 하나 받아요."),
+    return {"schema_version": 3, "profile": {"child_name": "시영", "daily_memo": "오늘도 작은 도전을 멋지게 해내자!", "updated_at": _now()},
+            "wishlist": [], "mood_entries": [], "challenges": [_new_challenge("영어 단어 100점", "📚", 10, "번", "100점 시험을 볼 때마다 별을 하나 받아요."),
                                            _new_challenge("일찍 일어나기", "🌞", 10, "번", "스스로 일어난 아침마다 반짝이는 별!"),
                                            _new_challenge("문제집 A 완주", "🚀", 4, "권", "A1부터 A4까지 한 권씩 완성해요.")]}
 
@@ -98,8 +100,8 @@ def _migrate_legacy(data: dict[str, Any]) -> dict[str, Any]:
             challenge["status"], challenge["selected_reward_id"], redeemed["claimed_by"] = "reward_selected", redeemed.get("id"), challenge["id"]
         else:
             challenge["status"] = "completed"
-    return {"schema_version": 2, "profile": {"child_name": "시영", "daily_memo": profile.get("daily_memo", "오늘도 작은 도전을 멋지게 해내자!"), "updated_at": _now()},
-            "wishlist": data.get("wishlist", []) or [], "challenges": [challenge]}
+    return {"schema_version": 3, "profile": {"child_name": "시영", "daily_memo": profile.get("daily_memo", "오늘도 작은 도전을 멋지게 해내자!"), "updated_at": _now()},
+            "wishlist": data.get("wishlist", []) or [], "mood_entries": [], "challenges": [challenge]}
 
 
 def _normalize_data(data: dict[str, Any]) -> dict[str, Any]:
@@ -108,12 +110,30 @@ def _normalize_data(data: dict[str, Any]) -> dict[str, Any]:
     if not data.get("schema_version") or "challenges" not in data:
         return _migrate_legacy(copy.deepcopy(data))
     normalized = copy.deepcopy(data)
-    normalized["schema_version"] = 2
+    normalized["schema_version"] = 3
     normalized.setdefault("profile", {})
     normalized["profile"]["child_name"] = "시영"
     normalized["profile"].setdefault("daily_memo", "오늘도 작은 도전을 멋지게 해내자!")
     normalized.setdefault("wishlist", [])
+    normalized.setdefault("mood_entries", [])
     normalized.setdefault("challenges", [])
+    valid_mood_entries = {}
+    for entry in normalized["mood_entries"]:
+        try:
+            entry_date = date.fromisoformat(str(entry.get("date", ""))).isoformat()
+        except (TypeError, ValueError):
+            continue
+        mood_id = str(entry.get("mood", ""))
+        if mood_id not in MOODS:
+            continue
+        valid_mood_entries[entry_date] = {
+            "date": entry_date,
+            "mood": mood_id,
+            "memo": str(entry.get("memo", ""))[:300],
+            "created_at": entry.get("created_at", _now()),
+            "updated_at": entry.get("updated_at", _now()),
+        }
+    normalized["mood_entries"] = sorted(valid_mood_entries.values(), key=lambda item: item["date"])
     for challenge in normalized["challenges"]:
         challenge.setdefault("id", f"challenge-{uuid.uuid4()}")
         challenge.setdefault("emoji", "🌟")
@@ -172,6 +192,33 @@ def save_data(data: dict[str, Any]) -> bool:
 
 def get_challenge(data: dict[str, Any], challenge_id: str) -> dict[str, Any] | None:
     return next((item for item in data["challenges"] if item.get("id") == challenge_id), None)
+
+
+def upsert_mood_entry(entry_date: str, mood_id: str, memo: str = "") -> tuple[bool, str]:
+    try:
+        chosen_date = date.fromisoformat(entry_date)
+    except ValueError:
+        return False, "날짜를 다시 확인해주세요."
+    if chosen_date > date.today():
+        return False, "아직 오지 않은 날의 기분은 나중에 기록해요."
+    if mood_id not in MOODS:
+        return False, "기분을 하나 골라주세요."
+    if len(memo.strip()) > 300:
+        return False, "메모는 300자까지 적을 수 있어요."
+
+    data = load_data()
+    existing = next((item for item in data["mood_entries"] if item.get("date") == entry_date), None)
+    if existing:
+        existing["mood"] = mood_id
+        existing["memo"] = memo.strip()
+        existing["updated_at"] = _now()
+        message = "마음 기록을 새롭게 고쳤어요!"
+    else:
+        now = _now()
+        data["mood_entries"].append({"date": entry_date, "mood": mood_id, "memo": memo.strip(), "created_at": now, "updated_at": now})
+        data["mood_entries"].sort(key=lambda item: item["date"])
+        message = "오늘의 마음을 소중히 담았어요!"
+    return (True, message) if save_data(data) else (False, "마음 기록을 저장하지 못했어요.")
 
 
 def add_challenge(title: str, emoji: str, target: int, unit: str, description: str) -> tuple[bool, str]:

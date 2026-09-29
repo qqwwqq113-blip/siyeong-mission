@@ -24,6 +24,10 @@ h1, h2, h3, [data-testid='stMetricValue'] { font-family: 'Jua', sans-serif; }
 .mission-emoji { font-size: 2.5rem; line-height: 1.1; margin-bottom: .3rem; }
 .gift-icon { font-size: 5rem; text-align: center; padding: .65rem; filter: drop-shadow(0 8px 6px rgba(255, 209, 102, .3)); }
 .hero p { margin-bottom: 0; color: var(--muted); font-size: 1.05rem; }
+.calendar-weekday { text-align: center; font-family: 'Jua', sans-serif; color: var(--muted); padding: .3rem 0; }
+.calendar-blank { min-height: 3.2rem; }
+.calendar-selected { color: var(--mint); font-size: .72rem; font-weight: 700; text-align: center; margin-top: -.55rem; }
+[data-testid='stForm'] { border-radius: 16px; }
 @keyframes appear { from { transform: scale(.86); opacity: .2; } to { transform: scale(1); opacity: 1; } }
 @media (max-width: 760px) { .hero h1 { white-space: normal; } }
 @media (max-width: 640px) { .block-container { padding: 1rem; padding-top: 1.5rem; } .hero { padding: 1.25rem; } .slot { min-height: 125px; } }

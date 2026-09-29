@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import os
 from datetime import date
 from html import escape
@@ -8,7 +9,7 @@ from typing import Any
 
 import streamlit as st
 
-from utils import effects, storage
+from utils import effects, moods, storage
 
 st.set_page_config(page_title="시영의 반짝 미션", page_icon="🌈", layout="wide")
 
@@ -156,6 +157,152 @@ def render_wishlist(data: dict[str, Any]) -> None:
                 st.markdown("</div>", unsafe_allow_html=True)
 
 
+def _move_month(month_start: date, offset: int) -> date:
+    month_index = month_start.year * 12 + month_start.month - 1 + offset
+    return date(month_index // 12, month_index % 12 + 1, 1)
+
+
+def _prepare_mood_date() -> date:
+    pending = st.session_state.pop("pending_mood_date", None)
+    if pending:
+        st.session_state.mood_date_picker = pending
+    elif "mood_date_picker" not in st.session_state:
+        st.session_state.mood_date_picker = date.today()
+    return st.session_state.mood_date_picker
+
+
+def render_mood_entry_form(data: dict[str, Any]) -> date:
+    st.subheader("💗 오늘의 마음 남기기")
+    st.caption("기쁜 마음도 속상한 마음도 모두 소중해요. 지난 날짜의 기록도 언제든 고칠 수 있어요.")
+    _prepare_mood_date()
+    selected = st.date_input(
+        "기록할 날짜",
+        max_value=date.today(),
+        key="mood_date_picker",
+    )
+    if st.session_state.get("last_mood_date") != selected:
+        st.session_state.last_mood_date = selected
+        st.session_state.mood_calendar_month = selected.replace(day=1)
+
+    entry = moods.entries_by_date(data["mood_entries"]).get(selected.isoformat(), {})
+    mood_ids = list(moods.MOODS)
+    current_mood = entry.get("mood", "good")
+    with st.form(f"mood-entry-{selected.isoformat()}"):
+        mood_id = st.radio(
+            "오늘은 어떤 마음이었나요?",
+            mood_ids,
+            index=mood_ids.index(current_mood) if current_mood in mood_ids else 1,
+            format_func=moods.mood_text,
+            horizontal=True,
+        )
+        memo = st.text_area(
+            "짧은 메모 (선택)",
+            value=str(entry.get("memo", "")),
+            max_chars=300,
+            placeholder="오늘 기억하고 싶은 일을 짧게 적어봐요.",
+        )
+        button_text = "마음 기록 수정하기" if entry else "오늘의 마음 저장하기"
+        if st.form_submit_button(f"💾 {button_text}", use_container_width=True):
+            success, message = storage.upsert_mood_entry(selected.isoformat(), mood_id, memo)
+            if success:
+                st.session_state.app_data = storage.load_data()
+                st.session_state.mood_notice = message
+                st.rerun()
+            st.error(message)
+    if notice := st.session_state.pop("mood_notice", None):
+        st.success(f"🌷 {notice}")
+        st.balloons()
+    return selected
+
+
+def render_mood_calendar(data: dict[str, Any], selected: date) -> None:
+    entries = moods.entries_by_date(data["mood_entries"])
+    month_start = st.session_state.get("mood_calendar_month", selected.replace(day=1))
+    st.session_state.mood_calendar_month = month_start
+
+    previous, title, today_button, next_month = st.columns([1, 3, 2, 1])
+    if previous.button("◀ 이전 달", use_container_width=True):
+        st.session_state.mood_calendar_month = _move_month(month_start, -1)
+        st.rerun()
+    title.markdown(f"### {month_start.year}년 {month_start.month}월")
+    if today_button.button("이번 달", use_container_width=True):
+        st.session_state.mood_calendar_month = date.today().replace(day=1)
+        st.rerun()
+    if next_month.button("다음 달 ▶", use_container_width=True, disabled=month_start >= date.today().replace(day=1)):
+        st.session_state.mood_calendar_month = _move_month(month_start, 1)
+        st.rerun()
+
+    headers = st.columns(7)
+    for column, weekday in zip(headers, ["일", "월", "화", "수", "목", "금", "토"]):
+        column.markdown(f"<div class='calendar-weekday'>{weekday}</div>", unsafe_allow_html=True)
+
+    month_weeks = calendar.Calendar(firstweekday=6).monthdayscalendar(month_start.year, month_start.month)
+    for week_index, week in enumerate(month_weeks):
+        columns = st.columns(7)
+        for weekday_index, (column, day_number) in enumerate(zip(columns, week)):
+            if day_number == 0:
+                column.markdown("<div class='calendar-blank'></div>", unsafe_allow_html=True)
+                continue
+            day = date(month_start.year, month_start.month, day_number)
+            entry = entries.get(day.isoformat())
+            emoji = moods.mood_text(str(entry.get("mood", "")), False) if entry else "·"
+            prefix = "🌟 " if day == date.today() else ""
+            label = f"{prefix}{day_number}\n{emoji}"
+            if column.button(label, key=f"mood-day-{day.isoformat()}", use_container_width=True, disabled=day > date.today()):
+                st.session_state.pending_mood_date = day
+                st.rerun()
+            if day == selected:
+                column.markdown("<div class='calendar-selected'>선택됨</div>", unsafe_allow_html=True)
+
+    selected_entry = entries.get(selected.isoformat())
+    if selected_entry:
+        mood_label = moods.mood_text(str(selected_entry.get("mood", "")))
+        st.info(f"{selected:%Y년 %m월 %d일} · {mood_label}\n\n{selected_entry.get('memo') or '남긴 메모는 없어요.'}")
+    else:
+        st.caption(f"{selected:%Y년 %m월 %d일}에는 아직 마음 기록이 없어요.")
+
+
+def render_mood_stats(data: dict[str, Any], reference: date) -> None:
+    st.subheader("📊 마음 기록 통계")
+    period = st.radio("통계 기간", ["주별", "월별", "연도별"], horizontal=True, label_visibility="collapsed")
+    start, end, period_label = moods.period_bounds(period, reference)
+    entries = moods.entries_in_period(data["mood_entries"], start, end)
+    counts = moods.mood_counts(entries)
+    favorite = moods.favorite_mood(entries)
+    effective_end = min(end, date.today())
+    available_days = max(0, (effective_end - start).days + 1) if start <= effective_end else 0
+    record_rate = round(len(entries) / available_days * 100) if available_days else 0
+
+    st.caption(f"기준 기간 · {period_label}")
+    metric_columns = st.columns(4)
+    metric_columns[0].metric("기록한 날", f"{len(entries)}일")
+    metric_columns[1].metric("기록률", f"{record_rate}%")
+    metric_columns[2].metric("가장 많았던 마음", moods.mood_text(favorite) if favorite else "아직 없음")
+    metric_columns[3].metric("최장 연속 기록", f"{moods.longest_streak(entries)}일")
+
+    chart_data = [
+        {"기분": moods.mood_text(mood_id), "횟수": count}
+        for mood_id, count in counts.items()
+    ]
+    st.bar_chart(chart_data, x="기분", y="횟수")
+
+    if entries:
+        with st.expander(f"📝 {period_label}의 마음 메모 모아보기"):
+            for entry in reversed(entries):
+                st.markdown(f"**{entry['date']} · {moods.mood_text(entry['mood'])}**")
+                st.write(entry.get("memo") or "남긴 메모는 없어요.")
+    else:
+        st.info("이 기간에는 아직 마음 기록이 없어요. 첫 마음을 남겨볼까요?")
+
+
+def render_mood_journal(data: dict[str, Any]) -> None:
+    selected = render_mood_entry_form(data)
+    st.divider()
+    render_mood_calendar(data, selected)
+    st.divider()
+    render_mood_stats(data, selected)
+
+
 def render_parent_sidebar(data: dict[str, Any]) -> None:
     st.sidebar.header("🧑‍🧑‍🧒 부모님 미션 관리")
     if not st.sidebar.checkbox("부모님 확인 모드"):
@@ -232,10 +379,11 @@ def main() -> None:
     render_header(data)
     render_parent_sidebar(data)
     data = refresh_data()
-    map_tab, gift_tab = st.tabs(["🗺️ 미션 지도", "🎁 선물 보물상자"])
+    map_tab, gift_tab, mood_tab = st.tabs(["🗺️ 미션 지도", "🎁 선물 보물상자", "😊 마음 달력"])
     with map_tab:
         render_mission_cards(data); st.divider(); render_stamp_board(selected_challenge(data))
     with gift_tab: render_wishlist(data)
+    with mood_tab: render_mood_journal(data)
     pending_id = st.session_state.get("pending_reward_challenge_id")
     pending = storage.get_challenge(data, pending_id) if pending_id else None
     if pending and pending["status"] == "completed": render_reward_picker(data, pending)
