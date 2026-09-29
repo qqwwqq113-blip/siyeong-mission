@@ -379,11 +379,11 @@ def main() -> None:
     render_header(data)
     render_parent_sidebar(data)
     data = refresh_data()
-    map_tab, gift_tab, mood_tab = st.tabs(["🗺️ 미션 지도", "🎁 선물 보물상자", "😊 마음 달력"])
+    mood_tab, map_tab, gift_tab = st.tabs(["😊 마음 달력", "🗺️ 미션 지도", "🎁 선물 보물상자"])
+    with mood_tab: render_mood_journal(data)
     with map_tab:
         render_mission_cards(data); st.divider(); render_stamp_board(selected_challenge(data))
     with gift_tab: render_wishlist(data)
-    with mood_tab: render_mood_journal(data)
     pending_id = st.session_state.get("pending_reward_challenge_id")
     pending = storage.get_challenge(data, pending_id) if pending_id else None
     if pending and pending["status"] == "completed": render_reward_picker(data, pending)
