@@ -144,8 +144,14 @@ def render_wishlist(data: dict[str, Any]) -> None:
         for column, item in zip(columns, data["wishlist"][start:start + 3]):
             with column:
                 st.markdown("<div class='wish-card'>", unsafe_allow_html=True)
-                if item.get("image_url"): st.image(item["image_url"], use_column_width="always")
-                else: st.markdown("<div class='gift-icon'>🎁</div>", unsafe_allow_html=True)
+                if item.get("image_url"):
+                    try:
+                        st.image(item["image_url"], use_container_width=True)
+                    except Exception:
+                        st.markdown("<div class='gift-icon'>🎁</div>", unsafe_allow_html=True)
+                        st.caption("선물 이미지를 불러오지 못했어요. 이미지 주소를 확인해주세요.")
+                else:
+                    st.markdown("<div class='gift-icon'>🎁</div>", unsafe_allow_html=True)
                 st.markdown(f"### {escape(item['title'])}", unsafe_allow_html=True)
                 st.caption(item.get("memo", ""))
                 claimed_by = storage.get_challenge(data, item.get("claimed_by", ""))
