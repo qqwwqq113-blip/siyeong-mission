@@ -16,6 +16,10 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 STATE_ID = "siyeong-family"
 
 
+class StorageUnavailableError(RuntimeError):
+    """클라우드 저장소에 연결할 수 없을 때 발생합니다."""
+
+
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
@@ -37,8 +41,8 @@ def _cloud_client() -> Any | None:
 
         return create_client(url, key)
     except (ImportError, ValueError) as error:
-        LOGGER.warning("Supabase 연결을 준비하지 못했습니다: %s", error)
-        return None
+        LOGGER.error("Supabase 연결을 준비하지 못했습니다: %s", error)
+        raise StorageUnavailableError("클라우드 저장소 연결을 준비하지 못했습니다.") from error
 
 
 def _load_cloud_data() -> dict[str, Any] | None:
@@ -48,9 +52,9 @@ def _load_cloud_data() -> dict[str, Any] | None:
     try:
         response = client.table("app_state").select("data").eq("id", STATE_ID).maybe_single().execute()
         return response.data.get("data") if response.data else None
-    except Exception as error:  # 네트워크 및 SDK 오류는 로컬 사용을 위해 안전하게 처리합니다.
-        LOGGER.warning("Supabase 데이터를 읽지 못했습니다: %s", error)
-        return None
+    except Exception as error:
+        LOGGER.error("Supabase 데이터를 읽지 못했습니다: %s", error)
+        raise StorageUnavailableError("클라우드 기록을 불러오지 못했습니다.") from error
 
 
 def _save_cloud_data(data: dict[str, Any]) -> bool | None:
@@ -132,6 +136,8 @@ def load_data() -> dict[str, Any]:
         if data != cloud_data:
             save_data(data)
         return data
+    if os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_KEY"):
+        raise StorageUnavailableError("클라우드에 저장된 가족 기록을 찾지 못했습니다.")
     filepath = get_data_filepath()
     try:
         if not filepath.exists():

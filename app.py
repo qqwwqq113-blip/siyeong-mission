@@ -33,7 +33,14 @@ def configure_cloud() -> None:
 
 def refresh_data() -> dict[str, Any]:
     if "app_data" not in st.session_state:
-        st.session_state.app_data = storage.load_data()
+        try:
+            st.session_state.app_data = storage.load_data()
+        except storage.StorageUnavailableError:
+            st.error("☁️ 저장된 기록에 잠시 연결하지 못했어요. 기록은 초기화되지 않았으니 안심하세요.")
+            st.caption("잠시 후 다시 시도해주세요. 계속되면 클라우드 저장소 상태를 확인해야 합니다.")
+            if st.button("🔄 다시 연결하기", use_container_width=True):
+                st.rerun()
+            st.stop()
     return st.session_state.app_data
 
 
